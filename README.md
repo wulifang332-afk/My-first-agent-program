@@ -32,6 +32,7 @@ This writes:
 
 ### Example Output
 
+Example chart generated from the sample dataset (avg_units by category).
 ![Example chart](assets/example_chart.png)
 
 ### Run the eval harness
