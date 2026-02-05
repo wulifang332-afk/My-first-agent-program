@@ -8,6 +8,7 @@ from typing import List, Tuple
 
 import pandas as pd
 
+from analyst_agent.planner import plan_question
 from analyst_agent.reporter import generate_report
 from analyst_agent.tools import PythonChartTool, SQLResult, SQLTool
 from analyst_agent.tracing import TraceLogger
@@ -89,6 +90,7 @@ def run_question(
     try:
         headers = _read_headers(data_path)
         numeric_cols, categorical_cols = _infer_columns(data_path)
+        planner_output = plan_question(question)
         plan = _build_plan(question, headers)
         trace.log(
             "plan",
@@ -99,8 +101,10 @@ def run_question(
                 "numeric_cols": numeric_cols,
                 "categorical_cols": categorical_cols,
                 "steps": plan,
+                "planner_output": planner_output,
             },
         )
+        trace.log("planner", planner_output)
 
         sql = _build_sql(numeric_cols, categorical_cols)
         sql_tool = SQLTool(data_path=data_path, artifacts_dir=artifacts_dir)

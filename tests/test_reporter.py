@@ -38,7 +38,7 @@ def test_report_contains_required_sections_and_findings(tmp_path):
 
     key_findings = _section_content(report_text, "Key Findings")
     finding_lines = [line for line in key_findings.splitlines() if line.startswith("- F")]
-    assert 2 <= len(finding_lines) <= 5
+    assert 3 <= len(finding_lines) <= 5
     for line in finding_lines:
         assert "artifacts/tables/query_" in line
         assert "Trace query id" in line

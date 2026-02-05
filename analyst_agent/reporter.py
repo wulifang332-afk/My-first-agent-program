@@ -108,6 +108,21 @@ def _extract_queries(entries: Iterable[Dict[str, object]]) -> List[TraceQuery]:
     return queries
 
 
+def _extract_planner_output(entries: Iterable[Dict[str, object]]) -> Optional[Dict[str, object]]:
+    for entry in entries:
+        if entry.get("event_type") == "planner":
+            payload = entry.get("payload")
+            if isinstance(payload, dict):
+                return payload
+    for entry in entries:
+        if entry.get("event_type") == "plan":
+            payload = entry.get("payload", {})
+            planner_output = payload.get("planner_output")
+            if isinstance(planner_output, dict):
+                return planner_output
+    return None
+
+
 def _display_artifact_path(path: Path) -> str:
     path_str = path.as_posix()
     marker = "artifacts/"
@@ -156,7 +171,7 @@ def _build_findings(
             f"{chart_ref}"
         )
 
-    if len(queries_for_findings) >= 2:
+    if len(queries_for_findings) >= 3:
         for idx, query in enumerate(queries_for_findings, start=1):
             dataframe = pd.read_csv(query.table_path)
             detail = (
@@ -180,6 +195,12 @@ def _build_findings(
         sample_pairs = ", ".join(f"{key}={value}" for key, value in first_row.items())
         sample_detail = f"Sample of the first row: {sample_pairs}."
     findings.append(build_finding_text("F2", query, sample_detail))
+
+    columns_detail = (
+        "The table includes the following columns: "
+        f"{', '.join(str(col) for col in dataframe.columns)}."
+    )
+    findings.append(build_finding_text("F3", query, columns_detail))
 
     return findings, queries_for_findings
 
@@ -215,6 +236,7 @@ def generate_report(
         raise ReportGenerationError("Report generation requires data_path and question.")
 
     queries = _extract_queries(entries)
+    planner_output = _extract_planner_output(entries)
     _validate_artifacts(queries)
     findings, referenced_queries = _build_findings(queries, report_path)
 
@@ -233,6 +255,23 @@ def generate_report(
         handle.write("## Key Findings\n")
         for finding in findings:
             handle.write(f"- {finding}\n")
+        handle.write("\n")
+
+        handle.write("## Planner Summary\n")
+        if planner_output:
+            intent = planner_output.get("intent")
+            metrics = planner_output.get("metrics")
+            dimensions = planner_output.get("dimensions")
+            if isinstance(intent, str):
+                handle.write(f"- Intent: {intent}\n")
+            if isinstance(metrics, list):
+                handle.write(f"- Metrics: {', '.join(str(metric) for metric in metrics)}\n")
+            if isinstance(dimensions, list):
+                handle.write(
+                    f"- Dimensions: {', '.join(str(dimension) for dimension in dimensions)}\n"
+                )
+        else:
+            handle.write("- Intent: unavailable\n")
         handle.write("\n")
 
         handle.write("## Diagnostics\n")
