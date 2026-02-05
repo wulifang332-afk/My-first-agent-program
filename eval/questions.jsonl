@@ -1,0 +1,20 @@
+{"id":"q01","question":"What is the revenue trend over time by month?"}
+{"id":"q02","question":"Compare orders versus revenue by region."}
+{"id":"q03","question":"Break down signups by channel to understand segmentation."}
+{"id":"q04","question":"Are there any anomalies or spikes in daily revenue?"}
+{"id":"q05","question":"Which product categories contribute most to total sales attribution?"}
+{"id":"q06","question":"Analyze the conversion funnel from visits to orders."}
+{"id":"q07","question":"Summarize overall performance across all categories."}
+{"id":"q08","question":"Compare mobile vs desktop sessions by week."}
+{"id":"q09","question":"Segment churn by plan tier."}
+{"id":"q10","question":"Identify unexpected dips in weekly active users."}
+{"id":"q11","question":"Attribution: which channel drives the most signups?"}
+{"id":"q12","question":"Funnel drop-off between signups and purchases."}
+{"id":"q13","question":"Trend of sessions over time by week."}
+{"id":"q14","question":"Comparison of revenue between regions and channels."}
+{"id":"q15","question":"Segmentation of orders by product category."}
+{"id":"q16","question":"Anomaly detection for sudden spikes in orders."}
+{"id":"q17","question":"Attribution of revenue contribution by campaign source."}
+{"id":"q18","question":"Funnel conversion rate by device."}
+{"id":"q19","question":"Summary of overall user activity and engagement."}
+{"id":"q20","question":"Compare retention across cohorts by month."}
