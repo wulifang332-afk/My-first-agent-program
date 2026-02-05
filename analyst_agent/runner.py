@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import csv
 from dataclasses import dataclass
-from pathlib import Path
 from typing import List, Tuple
 
 import pandas as pd
 
+from analyst_agent.reporter import generate_report
 from analyst_agent.tools import PythonChartTool, SQLResult, SQLTool
 from analyst_agent.tracing import TraceLogger
 
@@ -22,10 +22,6 @@ class AnalysisArtifacts:
     table_path: str
     preview_markdown: str
     recommendations: List[str]
-
-
-def _ensure_parent(path: str) -> None:
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
 
 
 def _read_headers(data_path: str) -> List[str]:
@@ -82,33 +78,6 @@ def _build_recommendations(result_df: pd.DataFrame) -> List[str]:
     return recommendations
 
 
-def _write_report(
-    report_path: str,
-    question: str,
-    artifacts: AnalysisArtifacts,
-) -> None:
-    _ensure_parent(report_path)
-    with open(report_path, "w", encoding="utf-8") as handle:
-        handle.write("# Latest Analysis Report\n\n")
-        handle.write(f"**Question:** {question}\n\n")
-        handle.write("## Plan\n")
-        for step in artifacts.plan:
-            handle.write(f"- {step}\n")
-        handle.write("\n## SQL\n")
-        handle.write("```sql\n")
-        handle.write(f"{artifacts.sql}\n")
-        handle.write("```\n\n")
-        handle.write("## Results\n")
-        handle.write(artifacts.preview_markdown)
-        handle.write("\n\n")
-        handle.write(f"Full results saved to `{artifacts.table_path}`.\n\n")
-        handle.write("## Chart\n")
-        handle.write(f"{artifacts.chart_path}\n\n")
-        handle.write("## Recommendations\n")
-        for recommendation in artifacts.recommendations:
-            handle.write(f"- {recommendation}\n")
-
-
 def run_question(
     question: str,
     data_path: str,
@@ -138,7 +107,12 @@ def run_question(
         sql_result: SQLResult = sql_tool.run_query(sql)
         trace.log(
             "sql_call",
-            {"query_id": sql_result.query_id, "query": sql, "table": sql_tool.table_name},
+            {
+                "query_id": sql_result.query_id,
+                "query": sql,
+                "prepared_sql": sql_result.sql,
+                "table": sql_tool.table_name,
+            },
         )
         trace.log(
             "sql_result",
@@ -175,7 +149,13 @@ def run_question(
             preview_markdown=sql_result.preview_markdown,
             recommendations=recommendations,
         )
-        _write_report(report_path, question, artifacts)
+        trace.flush()
+        generate_report(
+            report_path=report_path,
+            trace_path=trace_path,
+            data_path=data_path,
+            question=question,
+        )
         trace.log("report_written", {"report_path": report_path})
 
         return artifacts
