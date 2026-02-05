@@ -19,8 +19,8 @@ class TimeWindow:
 INTENT_KEYWORDS = {
     "trend": ["trend", "over time", "over the", "growth", "increase", "decrease"],
     "comparison": ["compare", "vs", "versus", "difference", "relative"],
-    "segmentation": ["breakdown", "segment", "by ", "group by", "grouped"],
     "funnel": ["funnel", "conversion", "drop-off", "step"],
+    "segmentation": ["breakdown", "segment", "by ", "group by", "grouped"],
     "anomaly": ["anomaly", "spike", "dip", "outlier", "unexpected"],
     "attribution": ["attribution", "driver", "cause", "impact", "contribution"],
 }
