@@ -37,11 +37,6 @@ This writes:
 - `artifacts/tables/query_*.csv`
 - `artifacts/charts/chart_*.png`
 
-### Example Output
-
-Example chart generated from the sample dataset (avg_units by category).
-![Example chart](assets/example_chart.png)
-
 ### Run the eval harness
 
 ```bash
