@@ -29,8 +29,10 @@ python -m analyst_agent run --question "Which region has the highest average uni
 Example chart generated from the sample dataset (avg_units by category):
 
 ![Example chart](assets/example_chart.png)
-Example report: [assets/example_report.md](assets/example_report.md)  
-Example trace: [assets/example_trace.jsonl](assets/example_trace.jsonl)
+
+- Example report: [assets/example_report.md](assets/example_report.md)
+- Example trace: [assets/example_trace.jsonl](assets/example_trace.jsonl)
+
 
 This writes:
 - `reports/latest.md`
