@@ -77,3 +77,5 @@ We provide an evaluation harness that runs a JSONL question set and produces per
 ### How to run
 ```bash
 python -m analyst_agent eval --data data/sample.csv --output-dir reports/evals --questions eval/questions.jsonl
+
+![Eval Summary](docs/screenshots/eval.png)
