@@ -30,6 +30,10 @@ This writes:
 - `artifacts/tables/query_*.csv`
 - `artifacts/charts/chart_*.png`
 
+### Example Output
+
+![Example chart](assets/example_chart.png)
+
 ### Run the eval harness
 
 ```bash
