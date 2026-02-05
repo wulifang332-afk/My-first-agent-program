@@ -59,6 +59,16 @@ def test_eval_produces_results_csv(tmp_path):
     with open(results_path, newline="", encoding="utf-8") as handle:
         rows = list(csv.reader(handle))
     assert rows[0][:3] == ["question_id", "question", "status"]
+    assert rows[0][3:11] == [
+        "runtime_ms",
+        "sql_count",
+        "chart_count",
+        "findings_count",
+        "reco_count",
+        "golden_required",
+        "golden_ok",
+        "report_path",
+    ]
     assert len(rows) == 3
 
 
@@ -68,7 +78,16 @@ def test_checks_fail_when_missing_requirements(tmp_path):
     report_path.write_text("# Report\n")
     trace_path.write_text("")
 
-    passed, error, sql_count, chart_count = evaluate_report(
+    (
+        passed,
+        error,
+        sql_count,
+        chart_count,
+        findings_count,
+        reco_count,
+        golden_required,
+        golden_ok,
+    ) = evaluate_report(
         report_path=str(report_path),
         trace_path=str(trace_path),
     )
@@ -78,6 +97,10 @@ def test_checks_fail_when_missing_requirements(tmp_path):
     assert "chart_count < 1" in error
     assert sql_count == 0
     assert chart_count == 0
+    assert findings_count == 0
+    assert reco_count == 0
+    assert not golden_required
+    assert golden_ok
 
 
 @pytest.mark.parametrize(

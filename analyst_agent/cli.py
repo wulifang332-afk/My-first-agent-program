@@ -32,6 +32,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="reports/evals",
         help="Directory for eval outputs",
     )
+    eval_parser.add_argument(
+        "--questions",
+        default="eval/questions.jsonl",
+        help="Path to JSONL question set",
+    )
 
     return parser
 
@@ -50,7 +55,11 @@ def main() -> None:
         return
 
     if args.command == "eval":
-        success = run_eval(data_path=args.data, output_dir=args.output_dir)
+        success = run_eval(
+            data_path=args.data,
+            output_dir=args.output_dir,
+            questions_path=args.questions,
+        )
         sys.exit(0 if success else 1)
 
 

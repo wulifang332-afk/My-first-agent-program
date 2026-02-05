@@ -26,9 +26,31 @@ class EvalResult:
     runtime_ms: int
     sql_count: int
     chart_count: int
+    findings_count: int
+    reco_count: int
+    golden_required: bool
+    golden_ok: bool
     report_path: str
     trace_path: str
     error: str
+
+
+GOLDEN_TESTS = {
+    "q06": [
+        "Intent: funnel",
+        "Metrics: sessions, orders, conversion_rate",
+    ],
+    "q07": [
+        "Intent: summary",
+        "Metrics: count",
+        "Dimensions: category",
+    ],
+    "q20": [
+        "Intent: comparison",
+        "Metrics: retention",
+        "Dimensions: segment",
+    ],
+}
 
 
 def load_questions(path: str) -> List[EvalQuestion]:
@@ -94,9 +116,17 @@ def _collect_trace_counts(trace_path: str) -> Tuple[int, int, List[str]]:
     return sql_count, chart_count, chart_paths
 
 
-def evaluate_report(report_path: str, trace_path: str) -> Tuple[bool, str, int, int]:
+def evaluate_report(
+    report_path: str,
+    trace_path: str,
+    question_id: str | None = None,
+) -> Tuple[bool, str, int, int, int, int, bool, bool]:
     sql_count, chart_count, chart_paths = _collect_trace_counts(trace_path)
     errors: List[str] = []
+    findings_count = 0
+    reco_count = 0
+    golden_required = False
+    golden_ok = True
 
     if sql_count < 1:
         errors.append("sql_count < 1")
@@ -107,15 +137,32 @@ def evaluate_report(report_path: str, trace_path: str) -> Tuple[bool, str, int, 
     if Path(report_path).exists():
         report_text = Path(report_path).read_text(encoding="utf-8")
         findings_count = count_findings(report_text)
-        recommendations_count = count_recommendations(report_text)
+        reco_count = count_recommendations(report_text)
         if findings_count < 3:
             errors.append("findings_count < 3")
-        if recommendations_count < 3:
-            errors.append("recommendations_count < 3")
+        if reco_count < 3:
+            errors.append("reco_count < 3")
+        if question_id and question_id in GOLDEN_TESTS:
+            golden_required = True
+            missing_terms = [
+                term for term in GOLDEN_TESTS[question_id] if term not in report_text
+            ]
+            if missing_terms:
+                golden_ok = False
+                errors.append(f"golden_missing:{', '.join(missing_terms)}")
     for chart_path in chart_paths:
         if not Path(chart_path).exists():
             errors.append(f"chart_missing:{chart_path}")
-    return (not errors), "; ".join(errors), sql_count, chart_count
+    return (
+        (not errors),
+        "; ".join(errors),
+        sql_count,
+        chart_count,
+        findings_count,
+        reco_count,
+        golden_required,
+        golden_ok,
+    )
 
 
 def _write_results_csv(results_path: str, results: Iterable[EvalResult]) -> None:
@@ -130,6 +177,10 @@ def _write_results_csv(results_path: str, results: Iterable[EvalResult]) -> None
                 "runtime_ms",
                 "sql_count",
                 "chart_count",
+                "findings_count",
+                "reco_count",
+                "golden_required",
+                "golden_ok",
                 "report_path",
                 "trace_path",
                 "error",
@@ -144,6 +195,10 @@ def _write_results_csv(results_path: str, results: Iterable[EvalResult]) -> None
                     result.runtime_ms,
                     result.sql_count,
                     result.chart_count,
+                    result.findings_count,
+                    result.reco_count,
+                    str(result.golden_required).lower(),
+                    str(result.golden_ok).lower(),
                     result.report_path,
                     result.trace_path,
                     result.error,
@@ -166,6 +221,10 @@ def _run_single_question(
     error_message = ""
     sql_count = 0
     chart_count = 0
+    findings_count = 0
+    reco_count = 0
+    golden_required = False
+    golden_ok = True
     status = "pass"
 
     try:
@@ -176,9 +235,19 @@ def _run_single_question(
             trace_path=str(trace_path),
             artifacts_dir=str(artifacts_dir),
         )
-        passed, error_message, sql_count, chart_count = evaluate_report(
+        (
+            passed,
+            error_message,
+            sql_count,
+            chart_count,
+            findings_count,
+            reco_count,
+            golden_required,
+            golden_ok,
+        ) = evaluate_report(
             report_path=str(report_path),
             trace_path=str(trace_path),
+            question_id=question.question_id,
         )
         if not passed:
             status = "fail"
@@ -193,6 +262,10 @@ def _run_single_question(
         runtime_ms=runtime_ms,
         sql_count=sql_count,
         chart_count=chart_count,
+        findings_count=findings_count,
+        reco_count=reco_count,
+        golden_required=golden_required,
+        golden_ok=golden_ok,
         report_path=str(report_path),
         trace_path=str(trace_path),
         error=error_message,
@@ -206,6 +279,10 @@ def _print_summary_table(results: Iterable[EvalResult]) -> None:
         "runtime_ms",
         "sql_count",
         "chart_count",
+        "findings_count",
+        "reco_count",
+        "golden_required",
+        "golden_ok",
         "report_path",
         "trace_path",
         "error",
@@ -217,6 +294,10 @@ def _print_summary_table(results: Iterable[EvalResult]) -> None:
             str(result.runtime_ms),
             str(result.sql_count),
             str(result.chart_count),
+            str(result.findings_count),
+            str(result.reco_count),
+            str(result.golden_required).lower(),
+            str(result.golden_ok).lower(),
             result.report_path,
             result.trace_path,
             result.error,
