@@ -5,7 +5,7 @@ import sys
 
 from analyst_agent.eval_harness import run_eval
 from analyst_agent.runner import run_question
-
+from pathlib import Path
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Analyst agent MVP")
@@ -32,7 +32,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="reports/evals",
         help="Directory for eval outputs",
     )
-
+    eval_parser.add_argument(
+    "--questions",
+    default=str(Path("eval") / "questions.jsonl"),
+    help="Path to JSONL questions file",
+)
     return parser
 
 
@@ -50,8 +54,13 @@ def main() -> None:
         return
 
     if args.command == "eval":
-        success = run_eval(data_path=args.data, output_dir=args.output_dir)
-        sys.exit(0 if success else 1)
+        success = run_eval(
+            data_path=args.data,
+            output_dir=args.output_dir,
+        questions_path=args.questions,
+    )
+    sys.exit(0 if success else 1)
+
 
 
 if __name__ == "__main__":
