@@ -5,16 +5,12 @@ from __future__ import annotations
 import csv
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import List, Tuple
 
-import duckdb
-import matplotlib
 import pandas as pd
 
+from analyst_agent.tools import PythonChartTool, SQLResult, SQLTool
 from analyst_agent.tracing import TraceLogger
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
 
 
 @dataclass
@@ -23,6 +19,8 @@ class AnalysisArtifacts:
     sql: str
     result_df: pd.DataFrame
     chart_path: str
+    table_path: str
+    preview_markdown: str
     recommendations: List[str]
 
 
@@ -84,24 +82,6 @@ def _build_recommendations(result_df: pd.DataFrame) -> List[str]:
     return recommendations
 
 
-def _build_chart(result_df: pd.DataFrame, chart_path: str) -> None:
-    _ensure_parent(chart_path)
-    plt.figure(figsize=(6, 4))
-    if "category" in result_df.columns and len(result_df.columns) >= 2:
-        metric_col = result_df.columns[1]
-        plt.bar(result_df["category"], result_df[metric_col], color="#4C78A8")
-        plt.title(f"{metric_col} by category")
-        plt.xlabel("Category")
-        plt.ylabel(metric_col)
-    else:
-        value = result_df.iloc[0, 0] if not result_df.empty else 0
-        plt.bar(["value"], [value], color="#4C78A8")
-        plt.title("Summary metric")
-    plt.tight_layout()
-    plt.savefig(chart_path)
-    plt.close()
-
-
 def _write_report(
     report_path: str,
     question: str,
@@ -119,8 +99,9 @@ def _write_report(
         handle.write(f"{artifacts.sql}\n")
         handle.write("```\n\n")
         handle.write("## Results\n")
-        handle.write(artifacts.result_df.to_markdown(index=False))
+        handle.write(artifacts.preview_markdown)
         handle.write("\n\n")
+        handle.write(f"Full results saved to `{artifacts.table_path}`.\n\n")
         handle.write("## Chart\n")
         handle.write(f"{artifacts.chart_path}\n\n")
         handle.write("## Recommendations\n")
@@ -133,47 +114,73 @@ def run_question(
     data_path: str,
     report_path: str = "reports/latest.md",
     trace_path: str = "reports/trace.jsonl",
+    artifacts_dir: str = "artifacts",
 ) -> AnalysisArtifacts:
     trace = TraceLogger(path=trace_path)
-    trace.log("start", {"question": question, "data_path": data_path})
+    try:
+        headers = _read_headers(data_path)
+        numeric_cols, categorical_cols = _infer_columns(data_path)
+        plan = _build_plan(question, headers)
+        trace.log(
+            "plan",
+            {
+                "question": question,
+                "data_path": data_path,
+                "headers": headers,
+                "numeric_cols": numeric_cols,
+                "categorical_cols": categorical_cols,
+                "steps": plan,
+            },
+        )
 
-    headers = _read_headers(data_path)
-    trace.log("data_headers", {"headers": headers})
+        sql = _build_sql(numeric_cols, categorical_cols)
+        sql_tool = SQLTool(data_path=data_path, artifacts_dir=artifacts_dir)
+        sql_result: SQLResult = sql_tool.run_query(sql)
+        trace.log(
+            "sql_call",
+            {"query_id": sql_result.query_id, "query": sql, "table": sql_tool.table_name},
+        )
+        trace.log(
+            "sql_result",
+            {
+                "query_id": sql_result.query_id,
+                "row_count": len(sql_result.dataframe),
+                "table_path": sql_result.table_path,
+            },
+        )
 
-    numeric_cols, categorical_cols = _infer_columns(data_path)
-    trace.log(
-        "data_inference",
-        {"numeric_cols": numeric_cols, "categorical_cols": categorical_cols},
-    )
+        chart_tool = PythonChartTool(artifacts_dir=artifacts_dir)
+        chart_result = chart_tool.create_chart(sql_result.dataframe)
+        trace.log(
+            "chart_call",
+            {
+                "chart_id": chart_result.chart_id,
+                "query_id": sql_result.query_id,
+                "columns": list(sql_result.dataframe.columns),
+            },
+        )
+        trace.log(
+            "chart_saved",
+            {"chart_id": chart_result.chart_id, "chart_path": chart_result.chart_path},
+        )
 
-    plan = _build_plan(question, headers)
-    trace.log("plan_built", {"plan": plan})
+        recommendations = _build_recommendations(sql_result.dataframe)
 
-    sql = _build_sql(numeric_cols, categorical_cols)
-    trace.log("sql_built", {"sql": sql})
+        artifacts = AnalysisArtifacts(
+            plan=plan,
+            sql=sql_result.sql,
+            result_df=sql_result.dataframe,
+            chart_path=chart_result.chart_path,
+            table_path=sql_result.table_path,
+            preview_markdown=sql_result.preview_markdown,
+            recommendations=recommendations,
+        )
+        _write_report(report_path, question, artifacts)
+        trace.log("report_written", {"report_path": report_path})
 
-    connection = duckdb.connect()
-    trace.log("duckdb_connect", {})
-    connection.execute("CREATE OR REPLACE TABLE data AS SELECT * FROM read_csv_auto(?)", [data_path])
-    result_df = connection.execute(sql).df()
-    trace.log("sql_executed", {"row_count": len(result_df)})
-
-    chart_path = "charts/latest.png"
-    _build_chart(result_df, chart_path)
-    trace.log("chart_saved", {"chart_path": chart_path})
-
-    recommendations = _build_recommendations(result_df)
-    trace.log("recommendations", {"recommendations": recommendations})
-
-    artifacts = AnalysisArtifacts(
-        plan=plan,
-        sql=sql,
-        result_df=result_df,
-        chart_path=chart_path,
-        recommendations=recommendations,
-    )
-    _write_report(report_path, question, artifacts)
-    trace.log("report_written", {"report_path": report_path})
-
-    trace.flush()
-    return artifacts
+        return artifacts
+    except Exception as exc:  # pragma: no cover - defensive logging
+        trace.log("error", {"message": str(exc)})
+        raise
+    finally:
+        trace.flush()

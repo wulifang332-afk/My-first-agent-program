@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
 
 
@@ -14,12 +15,12 @@ class TraceLogger:
     enabled: bool = True
     _buffer: list[Dict[str, Any]] = field(default_factory=list)
 
-    def log(self, event: str, payload: Optional[Dict[str, Any]] = None) -> None:
+    def log(self, event_type: str, payload: Optional[Dict[str, Any]] = None) -> None:
         if not self.enabled:
             return
         entry = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "event": event,
+            "event_type": event_type,
             "payload": payload or {},
         }
         self._buffer.append(entry)
@@ -33,6 +34,7 @@ class TraceLogger:
     def flush(self) -> None:
         if not self.enabled:
             return
+        Path(self.path).parent.mkdir(parents=True, exist_ok=True)
         with open(self.path, "w", encoding="utf-8") as handle:
             for entry in self._buffer:
                 handle.write(json.dumps(entry))
