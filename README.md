@@ -24,6 +24,13 @@ pip install -r requirements.txt
 python -m analyst_agent run --question "Which region has the highest average units?" --data data/sample.csv
 ```
 
+## Example Output
+
+Example chart generated from the sample dataset (avg_units by category):
+
+![Example chart](assets/example_chart.png)
+
+
 This writes:
 - `reports/latest.md`
 - `reports/trace.jsonl`
