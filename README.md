@@ -43,10 +43,12 @@ This writes:
 ### Run the eval harness
 
 ```bash
-python -m analyst_agent eval --data data/sample.csv
+python -m analyst_agent eval --data data/sample.csv --output-dir reports/evals
 ```
 
-Reports and traces will be written under `reports/evals`.
+Eval outputs are written under the output directory, using the question id for each
+subfolder (for example, `reports/evals/<id>/report.md` and `reports/evals/<id>/trace.jsonl`).
+The aggregated metrics live in `reports/evals/results.csv`.
 
 ## Tooling & safety
 

@@ -7,7 +7,7 @@ import json
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Iterable, List, Tuple
 
 from analyst_agent.runner import run_question
 
@@ -43,18 +43,6 @@ def load_questions(path: str) -> List[EvalQuestion]:
             if isinstance(question_id, str) and isinstance(question, str):
                 questions.append(EvalQuestion(question_id=question_id, question=question))
     return questions
-
-
-def _next_run_id(output_dir: str) -> str:
-    base = Path(output_dir)
-    base.mkdir(parents=True, exist_ok=True)
-    existing = [
-        int(path.name.replace("run_", ""))
-        for path in base.iterdir()
-        if path.is_dir() and path.name.startswith("run_") and path.name.replace("run_", "").isdigit()
-    ]
-    next_index = max(existing) + 1 if existing else 1
-    return f"run_{next_index:04d}"
 
 
 def _count_markdown_section_items(markdown: str, section: str) -> int:
@@ -168,7 +156,7 @@ def _run_single_question(
     data_path: str,
     output_dir: Path,
 ) -> EvalResult:
-    question_dir = output_dir / f"question_{question.question_id}"
+    question_dir = output_dir / question.question_id
     question_dir.mkdir(parents=True, exist_ok=True)
     report_path = question_dir / "report.md"
     trace_path = question_dir / "trace.jsonl"
@@ -211,14 +199,53 @@ def _run_single_question(
     )
 
 
+def _print_summary_table(results: Iterable[EvalResult]) -> None:
+    headers = [
+        "question_id",
+        "status",
+        "runtime_ms",
+        "sql_count",
+        "chart_count",
+        "report_path",
+        "trace_path",
+        "error",
+    ]
+    rows = [
+        [
+            result.question_id,
+            result.status,
+            str(result.runtime_ms),
+            str(result.sql_count),
+            str(result.chart_count),
+            result.report_path,
+            result.trace_path,
+            result.error,
+        ]
+        for result in results
+    ]
+
+    column_widths = [
+        max(len(headers[idx]), *(len(row[idx]) for row in rows)) if rows else len(headers[idx])
+        for idx in range(len(headers))
+    ]
+
+    def format_row(values: List[str]) -> str:
+        return " | ".join(value.ljust(column_widths[idx]) for idx, value in enumerate(values))
+
+    divider = "-+-".join("-" * width for width in column_widths)
+    print(format_row(headers))
+    print(divider)
+    for row in rows:
+        print(format_row(row))
+
+
 def run_eval(
     data_path: str,
     output_dir: str,
     questions_path: str = "eval/questions.jsonl",
 ) -> bool:
     questions = load_questions(questions_path)
-    run_id = _next_run_id(output_dir)
-    run_dir = Path(output_dir) / run_id
+    run_dir = Path(output_dir)
     run_dir.mkdir(parents=True, exist_ok=True)
 
     results: List[EvalResult] = []
@@ -227,4 +254,5 @@ def run_eval(
 
     results_path = str(Path(output_dir) / "results.csv")
     _write_results_csv(results_path, results)
+    _print_summary_table(results)
     return all(result.status == "pass" for result in results)

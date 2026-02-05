@@ -5,7 +5,6 @@ from pathlib import Path
 import pytest
 
 from analyst_agent.eval_harness import evaluate_report, load_questions, run_eval
-from analyst_agent.planner import plan_question
 from analyst_agent.runner import run_question
 
 
@@ -13,6 +12,28 @@ def test_questions_jsonl_has_minimum():
     questions = load_questions("eval/questions.jsonl")
     assert len(questions) >= 20
     assert len({question.question_id for question in questions}) == len(questions)
+
+
+def test_load_questions_accepts_id_and_question_id(tmp_path):
+    questions_path = tmp_path / "questions.jsonl"
+    questions_path.write_text(
+        "\n".join(
+            [
+                json.dumps({"id": "q1", "question": "First question."}),
+                json.dumps({"question_id": "q2", "question": "Second question."}),
+                json.dumps({"id": "bad", "question": 123}),
+                "",
+            ]
+        )
+    )
+
+    questions = load_questions(str(questions_path))
+
+    assert [question.question_id for question in questions] == ["q1", "q2"]
+    assert [question.question for question in questions] == [
+        "First question.",
+        "Second question.",
+    ]
 
 
 def test_eval_produces_results_csv(tmp_path):
@@ -60,14 +81,25 @@ def test_checks_fail_when_missing_requirements(tmp_path):
 
 
 @pytest.mark.parametrize(
-    ("question", "expected_intent"),
+    ("question", "expected_intent", "expected_metrics", "expected_dimensions"),
     [
-        ("What is the revenue trend over time by month?", "trend"),
-        ("Compare orders by region.", "comparison"),
-        ("Break down signups by channel.", "segmentation"),
+        (
+            "What is the revenue trend over time by month?",
+            "trend",
+            "revenue",
+            "date",
+        ),
+        ("Compare orders by region.", "comparison", "orders", "region"),
+        ("Break down signups by channel.", "segmentation", "signups", "channel"),
     ],
 )
-def test_golden_planner_outputs_in_report(tmp_path, question, expected_intent):
+def test_golden_planner_outputs_in_report(
+    tmp_path,
+    question,
+    expected_intent,
+    expected_metrics,
+    expected_dimensions,
+):
     data_path = Path("data/sample.csv")
     report_path = tmp_path / "report.md"
     trace_path = tmp_path / "trace.jsonl"
@@ -82,9 +114,6 @@ def test_golden_planner_outputs_in_report(tmp_path, question, expected_intent):
     )
 
     report_text = report_path.read_text(encoding="utf-8")
-    planner_output = plan_question(question)
-
     assert f"Intent: {expected_intent}" in report_text
-    assert f"Metrics: {', '.join(planner_output['metrics'])}" in report_text
-    if planner_output["dimensions"]:
-        assert f"Dimensions: {', '.join(planner_output['dimensions'])}" in report_text
+    assert f"Metrics: {expected_metrics}" in report_text
+    assert f"Dimensions: {expected_dimensions}" in report_text
