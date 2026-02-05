@@ -69,3 +69,11 @@ The agent uses a minimal tool layer to keep execution safe and deterministic:
 
 Tracing is written to `reports/trace.jsonl` with structured JSONL entries describing
 plan steps, tool calls, outputs, and errors.
+
+## Evaluation (Prompt 5)
+
+We provide an evaluation harness that runs a JSONL question set and produces per-case artifacts and aggregated metrics.
+
+### How to run
+```bash
+python -m analyst_agent eval --data data/sample.csv --output-dir reports/evals --questions eval/questions.jsonl
