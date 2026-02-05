@@ -1,0 +1,13 @@
+region,product,units,price
+North,Widget,120,9.99
+South,Widget,85,9.99
+East,Widget,100,9.99
+West,Widget,95,9.99
+North,Gadget,60,14.50
+South,Gadget,55,14.50
+East,Gadget,75,14.50
+West,Gadget,70,14.50
+North,Doohickey,40,7.25
+South,Doohickey,35,7.25
+East,Doohickey,50,7.25
+West,Doohickey,45,7.25
